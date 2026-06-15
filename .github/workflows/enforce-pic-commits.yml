@@ -1,0 +1,33 @@
+name: Enforce PIC Only Commits
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  check-commits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure only PR creator commits
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            const { data: commits } = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number
+            });
+
+            const pic = pr.user.login;
+
+            const invalid = commits.find(c =>
+              c.author && c.author.login !== pic
+            );
+
+            if (invalid) {
+              core.setFailed(
+                `Only PIC (${pic}) can commit. Found: ${invalid.author.login}`
+              );
+            }
